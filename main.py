@@ -4,8 +4,8 @@ from flask import Flask
 import psycopg2
 import telebot
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-DATABASE_URL = os.environ.get("DATABASE_URL")
+BOT_TOKEN = os.environ.get("8746640852:AAECsMzZtQ0aDw3KD1TF3D8dt-AtzrWWlEM")
+DATABASE_URL = os.environ.get("postgresql://postgres:XwxAkjH70jNz9I9v@db.stgvazgcdhhjguwiifxm.supabase.co:5432/postgres")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)

@@ -1,3 +1,4 @@
+import time
 import os
 import threading
 from flask import Flask
@@ -122,7 +123,12 @@ def check_owe(message):
 
 def run_bot():
     print("Starting Telegram polling thread...")
-    bot.infinity_polling(skip_pending=True)
+    while True:
+        try:
+            bot.infinity_polling(skip_pending=True, timeout=20, long_polling_timeout=20)
+        except Exception as e:
+            print(f"Bot polling error: {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()

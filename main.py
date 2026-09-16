@@ -10,7 +10,7 @@ WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://owemoneybot.onrende
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-# Configure Webhook on launch
+# Register webhook with Telegram on launch
 try:
     bot.remove_webhook()
     bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")

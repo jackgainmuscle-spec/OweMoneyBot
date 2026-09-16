@@ -1,20 +1,33 @@
 import os
-import time
-import threading
-from flask import Flask
+from flask import Flask, request
 import psycopg2
 import telebot
-from telebot.apihelper import ApiTelegramException
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
+WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://owemoneybot.onrender.com")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
+# Configure Webhook on launch
+try:
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")
+    print(f"Webhook set successfully to {WEBHOOK_URL}/{BOT_TOKEN}")
+except Exception as e:
+    print(f"Failed to set webhook: {e}")
+
+@app.route('/' + BOT_TOKEN, methods=['POST'])
+def webhook():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "OK", 200
+
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "Bot web service is live!", 200
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -122,29 +135,6 @@ def check_owe(message):
         print(f"Owe error: {e}")
         bot.reply_to(message, "Error checking debts.")
 
-def run_bot():
-    try:
-        bot.remove_webhook()
-        print("Successfully cleared existing webhooks.")
-    except Exception as e:
-        print(f"Webhook cleanup error: {e}")
-
-    print("Starting Telegram polling thread...")
-    while True:
-        try:
-            bot.polling(non_stop=True, skip_pending=True, timeout=20, long_polling_timeout=20)
-        except ApiTelegramException as e:
-            if e.error_code == 409:
-                print("409 Conflict: Waiting 10s...")
-                time.sleep(10)
-            else:
-                print(f"Telegram API Exception: {e}")
-                time.sleep(5)
-        except Exception as e:
-            print(f"General Polling Exception: {e}")
-            time.sleep(5)
-
 if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)

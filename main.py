@@ -36,9 +36,41 @@ def send_welcome(message):
         "Here's how to use me:\n"
         "• Reply to someone with `/add 15` — Adds $15 to their tab for you.\n"
         "• Reply to someone with `/pay 15` — Subtracts $15 from what you owe them.\n"
-        "• Type `/owe` — Shows everyone you currently owe."
+        "• Type `/owe` — Shows everyone you currently owe.\n"
+        "• Type `/owed` — Shows everyone who owes you money."
     )
     bot.reply_to(message, text, parse_mode="Markdown")
+
+@bot.message_handler(commands=['owed'])
+def check_who_owes_me(message):
+    try:
+        user_id = message.from_user.id
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT debtor_name, amount FROM debts 
+            WHERE group_id = %s AND creditor_id = %s AND amount > 0;
+        """, (message.chat.id, user_id))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        if not rows:
+            bot.reply_to(message, "Nobody owes you money right now! 🟢")
+            return
+
+        total_owed = sum(amount for _, amount in rows)
+        response = "💰 **People who owe you:**\n"
+        for debtor_name, amount in rows:
+            response += f"• {debtor_name}: ${amount:.2f}\n"
+        
+        response += f"\n**Total expected back:** ${total_owed:.2f}"
+        
+        bot.reply_to(message, response, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Owed error: {e}")
+        bot.reply_to(message, "Error checking who owes you.")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL, sslmode='require')

@@ -1,9 +1,10 @@
-import time
 import os
+import time
 import threading
 from flask import Flask
 import psycopg2
 import telebot
+from telebot.apihelper import ApiTelegramException
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -126,8 +127,15 @@ def run_bot():
     while True:
         try:
             bot.infinity_polling(skip_pending=True, timeout=20, long_polling_timeout=20)
+        except ApiTelegramException as e:
+            if e.error_code == 409:
+                print("409 Conflict detected (previous container shutting down). Waiting 10s...")
+                time.sleep(10)
+            else:
+                print(f"Telegram API Error: {e}")
+                time.sleep(5)
         except Exception as e:
-            print(f"Bot polling error: {e}")
+            print(f"Polling error: {e}")
             time.sleep(5)
 
 if __name__ == "__main__":

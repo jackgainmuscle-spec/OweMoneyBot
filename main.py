@@ -18,7 +18,7 @@ def home():
 def send_welcome(message):
     text = (
         "👋 **Debt Tracker Bot is active!**\n\n"
-        "Here's how to use me in this group:\n"
+        "Here's how to use me:\n"
         "• Reply to someone with `/add 15` — Adds $15 to their tab for you.\n"
         "• Reply to someone with `/pay 15` — Subtracts $15 from what you owe them.\n"
         "• Type `/owe` — Shows everyone you currently owe."
@@ -57,7 +57,8 @@ def add_debt(message):
         conn.close()
 
         bot.reply_to(message, f"Added ${amount:.2f} to {debtor.first_name}'s tab for {creditor.first_name}.")
-    except Exception:
+    except Exception as e:
+        print(f"Add error: {e}")
         bot.reply_to(message, "Error. Reply to their message and write: `/add 15.50`", parse_mode="Markdown")
 
 @bot.message_handler(commands=['pay'])
@@ -88,36 +89,42 @@ def pay_debt(message):
             f"🔔 **Payment Alert:** {debtor.first_name} paid back ${amount:.2f} to {creditor.first_name}!",
             parse_mode="Markdown"
         )
-    except Exception:
+    except Exception as e:
+        print(f"Pay error: {e}")
         bot.reply_to(message, "Error recording payment.")
 
 @bot.message_handler(commands=['owe'])
 def check_owe(message):
-    user_id = message.from_user.id
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT creditor_name, amount FROM debts 
-        WHERE group_id = %s AND debtor_id = %s AND amount > 0;
-    """, (message.chat.id, user_id))
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    try:
+        user_id = message.from_user.id
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT creditor_name, amount FROM debts 
+            WHERE group_id = %s AND debtor_id = %s AND amount > 0;
+        """, (message.chat.id, user_id))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
 
-    if not rows:
-        bot.reply_to(message, "🎉 You don't owe anyone anything!")
-        return
+        if not rows:
+            bot.reply_to(message, "🎉 You don't owe anyone anything!")
+            return
 
-    response = "👇 **What you currently owe:**\n"
-    for creditor_name, amount in rows:
-        response += f"• {creditor_name}: ${amount:.2f}\n"
-    
-    bot.reply_to(message, response, parse_mode="Markdown")
+        response = "👇 **What you currently owe:**\n"
+        for creditor_name, amount in rows:
+            response += f"• {creditor_name}: ${amount:.2f}\n"
+        
+        bot.reply_to(message, response, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Owe error: {e}")
+        bot.reply_to(message, "Error checking debts.")
 
 def run_bot():
-    bot.infinity_polling()
+    print("Starting Telegram polling thread...")
+    bot.infinity_polling(skip_pending=True)
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot, daemon=True).start()
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)

@@ -8,7 +8,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__)0
+app = Flask(__name__)
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):

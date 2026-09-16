@@ -123,19 +123,25 @@ def check_owe(message):
         bot.reply_to(message, "Error checking debts.")
 
 def run_bot():
+    try:
+        bot.remove_webhook()
+        print("Successfully cleared existing webhooks.")
+    except Exception as e:
+        print(f"Webhook cleanup error: {e}")
+
     print("Starting Telegram polling thread...")
     while True:
         try:
-            bot.infinity_polling(skip_pending=True, timeout=20, long_polling_timeout=20)
+            bot.polling(non_stop=True, skip_pending=True, timeout=20, long_polling_timeout=20)
         except ApiTelegramException as e:
             if e.error_code == 409:
-                print("409 Conflict detected (previous container shutting down). Waiting 10s...")
+                print("409 Conflict: Waiting 10s...")
                 time.sleep(10)
             else:
-                print(f"Telegram API Error: {e}")
+                print(f"Telegram API Exception: {e}")
                 time.sleep(5)
         except Exception as e:
-            print(f"Polling error: {e}")
+            print(f"General Polling Exception: {e}")
             time.sleep(5)
 
 if __name__ == "__main__":

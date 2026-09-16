@@ -8,7 +8,11 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__)
+app = Flask(__name__)0
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "Bot is active! Use `/add <amount>` in reply to someone, `/pay <amount>`, or `/owe` to check balances.", parse_mode="Markdown")
 
 @app.route('/')
 def home():

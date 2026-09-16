@@ -4,19 +4,26 @@ from flask import Flask
 import psycopg2
 import telebot
 
-BOT_TOKEN = os.environ.get("8746640852:AAECsMzZtQ0aDw3KD1TF3D8dt-AtzrWWlEM")
-DATABASE_URL = os.environ.get("postgresql://postgres:XwxAkjH70jNz9I9v@db.stgvazgcdhhjguwiifxm.supabase.co:5432/postgres")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "Bot is active! Use `/add <amount>` in reply to someone, `/pay <amount>`, or `/owe` to check balances.", parse_mode="Markdown")
-
 @app.route('/')
 def home():
     return "Bot is alive!"
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    text = (
+        "👋 **Debt Tracker Bot is active!**\n\n"
+        "Here's how to use me in this group:\n"
+        "• Reply to someone with `/add 15` — Adds $15 to their tab for you.\n"
+        "• Reply to someone with `/pay 15` — Subtracts $15 from what you owe them.\n"
+        "• Type `/owe` — Shows everyone you currently owe."
+    )
+    bot.reply_to(message, text, parse_mode="Markdown")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL, sslmode='require')

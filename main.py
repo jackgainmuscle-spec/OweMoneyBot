@@ -42,6 +42,32 @@ def send_welcome(message):
 
 def get_db():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
+    
+def init_db():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS debts (
+                id SERIAL PRIMARY KEY,
+                group_id BIGINT NOT NULL,
+                debtor_id BIGINT NOT NULL,
+                debtor_name TEXT NOT NULL,
+                creditor_id BIGINT NOT NULL,
+                creditor_name TEXT NOT NULL,
+                amount NUMERIC(10, 2) DEFAULT 0,
+                CONSTRAINT unique_debt UNIQUE (group_id, debtor_id, creditor_id)
+            );
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"DB Init Error: {e}")
+
+# Call table creator on app startup
+init_db()
 
 @bot.message_handler(commands=['add'])
 def add_debt(message):

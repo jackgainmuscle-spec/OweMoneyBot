@@ -119,20 +119,81 @@ def add_debt(message):
 
         conn = get_db()
         cur = conn.cursor()
+
+        # Check if the creditor owes the debtor anything first (opposite debt)
         cur.execute("""
-            INSERT INTO debts (group_id, debtor_id, debtor_name, creditor_id, creditor_name, amount)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (group_id, debtor_id, creditor_id)
-            DO UPDATE SET amount = debts.amount + EXCLUDED.amount;
-        """, (message.chat.id, debtor.id, debtor.first_name, creditor.id, creditor.first_name, amount))
+            SELECT amount FROM debts 
+            WHERE group_id = %s AND debtor_id = %s AND creditor_id = %s;
+        """, (message.chat.id, creditor.id, debtor.id))
+        opposite_row = cur.fetchone()
+
+        if opposite_row and opposite_row[0] > 0:
+            opposite_amount = float(opposite_row[0])
+            if amount <= opposite_amount:
+                # Deduct entirely from what you owe them
+                cur.execute("""
+                    UPDATE debts SET amount = amount - %s
+                    WHERE group_id = %s AND debtor_id = %s AND creditor_id = %s;
+                """, (amount, message.chat.id, creditor.id, debtor.id))
+            else:
+                # Clear your debt to them, put the remaining balance on their tab
+                remaining_add = amount - opposite_amount
+                cur.execute("""
+                    UPDATE debts SET amount = 0
+                    WHERE group_id = %s AND debtor_id = %s AND creditor_id = %s;
+                """, (message.chat.id, creditor.id, debtor.id))
+
+                cur.execute("""
+                    INSERT INTO debts (group_id, debtor_id, debtor_name, creditor_id, creditor_name, amount)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (group_id, debtor_id, creditor_id)
+                    DO UPDATE SET amount = debts.amount + EXCLUDED.amount;
+                """, (message.chat.id, debtor.id, debtor.first_name, creditor.id, creditor.first_name, remaining_add))
+        else:
+            # Standard add if no opposite debt exists
+            cur.execute("""
+                INSERT INTO debts (group_id, debtor_id, debtor_name, creditor_id, creditor_name, amount)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (group_id, debtor_id, creditor_id)
+                DO UPDATE SET amount = debts.amount + EXCLUDED.amount;
+            """, (message.chat.id, debtor.id, debtor.first_name, creditor.id, creditor.first_name, amount))
+
         conn.commit()
         cur.close()
         conn.close()
 
-        bot.reply_to(message, f"Added ${amount:.2f} to {debtor.first_name}'s tab for {creditor.first_name}.")
+        bot.reply_to(message, f"Updated tab! Auto-calculated net balance for {debtor.first_name} and {creditor.first_name}.")
     except Exception as e:
         print(f"Add error: {e}")
         bot.reply_to(message, "Error. Reply to their message and write: `/add 15.50`", parse_mode="Markdown")
+
+@bot.message_handler(commands=['reduce'])
+def reduce_debt(message):
+    try:
+        parts = message.text.split()
+        if len(parts) < 2 or not message.reply_to_message:
+            bot.reply_to(message, "Reply to the person whose tab you want to reduce: `/reduce <amount>`", parse_mode="Markdown")
+            return
+
+        amount = float(parts[1])
+        debtor = message.reply_to_message.from_user
+        creditor = message.from_user
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE debts 
+            SET amount = GREATEST(0, amount - %s)
+            WHERE group_id = %s AND debtor_id = %s AND creditor_id = %s;
+        """, (amount, message.chat.id, debtor.id, creditor.id))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        bot.reply_to(message, f"Reduced {debtor.first_name}'s tab by ${amount:.2f}!")
+    except Exception as e:
+        print(f"Reduce error: {e}")
+        bot.reply_to(message, "Error reducing debt.")
 
 @bot.message_handler(commands=['pay'])
 def pay_debt(message):
